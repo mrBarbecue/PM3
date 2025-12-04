@@ -92,7 +92,7 @@ private:
     uint8_t device = DFPLAYER_DEVICE_SD;
 
     bool baneModeActive = false;        //Changes voicecomands to the voice of bane
-    const uint8_t baneModeOffset = 6;   //Offset thats added to player commands to play bane voices
+    const int baneModeOffset = 6;   //Offset thats added to player commands to play bane voices
 
 public:
 

@@ -66,6 +66,9 @@ int main(){
     const uint8_t mainTaskPeriod = 20; //20  //Executiontime of main whileloop
     Timer MainTaskTimer;                      //Creates MainTaskTimer Object;
 
+    uint8_t lastTrackPlayed = 0;    //stores which track has been played to not play it repeadedly
+
+
     bool edgedetectionVoiceModes = false;   //stores the state of the Voicemode for edgedetection
 
     //Starts the Timer
@@ -82,7 +85,7 @@ int main(){
             
         }
         else{
-            Player.volume(15);
+            Player.volume(25);
             printf("DFPlayer started.\n");
         }
     #endif
@@ -205,7 +208,10 @@ int main(){
                                     printf("In lower pos\n");
                                 #endif
                                 #ifdef _playerEnabled
+                                if(lastTrackPlayed != DFRobotDFPlayerMini::inLowerPos){
+                                    lastTrackPlayed = DFRobotDFPlayerMini::inLowerPos;
                                     Player.play(DFRobotDFPlayerMini::inLowerPos);
+                                }
                                 #endif
                                 
                             }
@@ -223,7 +229,11 @@ int main(){
                             printf("Motor not initialized\n");
                         #endif
                         #ifdef _playerEnabled
+                        if(lastTrackPlayed != DFRobotDFPlayerMini::notInitialized){
+                            lastTrackPlayed = DFRobotDFPlayerMini::notInitialized;
                             Player.play(DFRobotDFPlayerMini::notInitialized);
+                        }
+
                         #endif
                     }
                     else if(Stepper.rampUp(mainTaskPeriod)){
@@ -239,7 +249,11 @@ int main(){
                                 printf("In upper pos\n");
                             #endif
                             #ifdef _playerEnabled
+                            if(lastTrackPlayed !=DFRobotDFPlayerMini::inUpperPos){
+                                lastTrackPlayed =  DFRobotDFPlayerMini::inUpperPos;
                                 Player.play(DFRobotDFPlayerMini::inUpperPos);
+                            }
+                                
                             #endif
                         }
                     }
