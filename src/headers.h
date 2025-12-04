@@ -98,10 +98,12 @@ public:
 
     explicit DFRobotDFPlayerMini(PinName RX, PinName TX, PinName BUSY);
 
+    bool getBusyState();
     bool getBaneModeState();
     void setBaneModeState();
 
     typedef enum{
+        startsAtOne,
         notInitialized,
         inUpperPos,
         inLowerPos,
@@ -268,6 +270,15 @@ public:
      */
     float getVelocity() const { return m_velocity; };
 
+    /**
+     * @brief Gets the current rotation count.
+     *
+     * Returns the current rotation count, calculated as steps divided by steps per revolution.
+     *
+     * @return Current rotation count.
+     */
+    float getRotation() const { return static_cast<float>(m_steps) / m_steps_per_rev; };
+
 
 private:
     static constexpr int PULSE_MUS = 10;
@@ -383,14 +394,7 @@ private:
      */
     int getSteps() const { return m_steps; };
 
-    /**
-     * @brief Gets the current rotation count.
-     *
-     * Returns the current rotation count, calculated as steps divided by steps per revolution.
-     *
-     * @return Current rotation count.
-     */
-    float getRotation() const { return static_cast<float>(m_steps) / m_steps_per_rev; };
+
 };
 
 #endif

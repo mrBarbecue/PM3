@@ -105,21 +105,48 @@ bool DFRobotDFPlayerMini::waitAvailable(unsigned long duration){
   return true;
 }
 
-bool DFRobotDFPlayerMini::begin(bool isACK, bool doReset) {
-
-    if (isACK) enableACK();
-    else       disableACK();
-
-    if (doReset) {
-        reset();
-        waitAvailable(2000);
+bool DFRobotDFPlayerMini::begin(bool isACK, bool doReset)
+{
+    // ACK-Modus setzen
+    if (isACK) {
+        enableACK();
     } else {
-        _handleType = DFPlayerCardOnline;
+        disableACK();
     }
 
-    return (readType() == DFPlayerCardOnline) ||
-           (readType() == DFPlayerUSBOnline)  ||
-           !isACK;
+    // Optionaler Reset
+    if (doReset) {
+        reset();
+
+        // Warten auf echte Antwort vom DFPlayer
+        if (!waitAvailable(2000)) {
+#ifdef _DEBUG
+            printf("DFPlayer: Keine Antwort nach Reset!\n");
+#endif
+            return false;   // DFPlayer antwortet nicht
+        }
+    }
+
+    // Rückmeldung genau EINMAL auslesen
+    uint8_t type = readType();
+
+#ifdef _DEBUG
+    printf("DFPlayer begin(): Antwort-Typ = 0x%02X\n", type);
+#endif
+
+    // Gültige Online-Zustände prüfen
+    if (type == DFPlayerCardOnline ||
+        type == DFPlayerUSBOnline  ||
+        type == DFPlayerCardUSBOnline) {
+        return true;
+    }
+
+    // Falls ACK deaktiviert ist, nicht auf Rückmeldung bestehen
+    if (!isACK) {
+        return true;
+    }
+
+    return false;
 }
 
 uint8_t DFRobotDFPlayerMini::readType(){
@@ -250,7 +277,13 @@ bool DFRobotDFPlayerMini::available(){
       }
     }
     else{
-      _received[_receivedIndex] = serial.readable();
+        uint8_t b;
+        int result = serial.read(&b, 1);
+        if (result == 1) {
+            _received[_receivedIndex] = b;   // ✅ RICHTIG
+        } else {
+            return false;
+        }
 #ifdef _DEBUG
       printf("0x%02X ",_received[_receivedIndex]);
       printf(" ");
@@ -305,10 +338,10 @@ void DFRobotDFPlayerMini::previous(){
 }
 
 void DFRobotDFPlayerMini::play(int fileNumber){
-  if (BusyPin.read()){  //If Pin High, Player is ready
-    if(baneModeActive) fileNumber += baneModeOffset;
-    sendStack(0x03, fileNumber);
-    }
+    if (BusyPin.read()){  //If Pin High, Player is ready
+        if(baneModeActive) fileNumber += baneModeOffset;
+        sendStack(0x03, fileNumber);
+        }
 }
 
 void DFRobotDFPlayerMini::volumeUp(){

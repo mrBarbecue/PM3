@@ -2,11 +2,11 @@
 #include <cstdint>
 
 #define _debug
-//#define _playerEnabled
+#define _playerEnabled
 
 //Pins for Stepper Motor
-#define STEP PB_14
-#define DIR PC_4
+#define STEP PB_9
+#define DIR PB_8
 
 //Pins for MP3-Player
 #define BUSY PB_2
@@ -51,14 +51,20 @@ int main(){
     bool toggleModeDetected = false;    //detects if the mode (manual or automatic) has been changed
     bool modeState = false;             //manual=1 or automatic=0
 
-    uint16_t solenoidReleaseCounter = 0;        //Counts the loops until the solenoid gets release
-    const uint16_t solenoidReleaseDelay = 1500; //Delay between releasing the down switch and releasing the solenoid in ms
+    uint16_t limitSwitchReadCounter = 0;                 //Counts for how many loops in a row the Limitswitch has been enganged
+    const uint16_t limitSwitchReadCycles = 3; //3        //Cycles until the Limitswitch is being read as enaged
 
-    uint16_t solenoidHoldCounter = 0;           //Counts the loops until the the carjack can be driven down
-    const uint16_t driveDownDelay = 400;        //Delay between pulling the solenoid back and driving the carjack down in ms
+    uint16_t bothSwitchesEngagedCounter = 0;                 //Counts for how many loops in a row both the up and down switch are being pressed
+    const uint16_t bothSwitchesEngagedDelay = 3000; //3000   //Delay until the Limitswitch is being read as enaged
 
-    const uint8_t mainTaskPeriod = 255;   //Executiontime of main whileloop
-    Timer MainTaskTimer;                 //Creates MainTaskTimer Object;
+    uint16_t solenoidReleaseCounter = 0;                    //Counts the loops until the solenoid gets release
+    const uint16_t solenoidReleaseDelay = 3000; //1500      //Delay between releasing the down switch and releasing the solenoid in ms
+
+    uint16_t solenoidHoldCounter = 0;                       //Counts the loops until the the carjack can be driven down
+    const uint16_t driveDownDelay = 400; //400              //Delay between pulling the solenoid back and driving the carjack down in ms
+
+    const uint8_t mainTaskPeriod = 20; //20  //Executiontime of main whileloop
+    Timer MainTaskTimer;                      //Creates MainTaskTimer Object;
 
     bool edgedetectionVoiceModes = false;   //stores the state of the Voicemode for edgedetection
 
@@ -70,11 +76,13 @@ int main(){
         DFRobotDFPlayerMini Player(RX, TX, BUSY);
         bool PlayerStatusOK = Player.begin(true, true);  // ACK on, reset
 
+
         if (!PlayerStatusOK) {
             printf("DFPlayer could not be initialized!\n");
             
         }
         else{
+            Player.volume(15);
             printf("DFPlayer started.\n");
         }
     #endif
@@ -82,22 +90,40 @@ int main(){
     
     const uint16_t stepsPerRev = 400;           //How many steps the motor perfomes to do one revolution, depends on dipswitches
     Stepper Stepper(STEP, DIR, stepsPerRev);
-
     Stepper.setVelocity(0);
+
 
     while(true){
         MainTaskTimer.reset();  //resets the maintasktimer
 
+        
+        #ifdef _playerEnabled
+            /*
+            if(Player.getBusyState()){
+                printf("Player Busy\n");
+            }
+            else{
+                printf("Player ready\n");
+            }
+            */
+            printf("readType: %d, read: %d\n",Player.readType(), Player.read());
+        #endif
+        
+
         //voicemode toggle
         if(UpSwitch.read() and DownSwitch.read()){
-            if(!edgedetectionVoiceModes){
-            edgedetectionVoiceModes = true;
-            #ifdef _playerEnabled
-                Player.setBaneModeState();
-            #endif
+            bothSwitchesEngagedCounter++;
+            if(bothSwitchesEngagedCounter >= bothSwitchesEngagedDelay / mainTaskPeriod){
+                if(!edgedetectionVoiceModes){
+                edgedetectionVoiceModes = true;
+                #ifdef _playerEnabled
+                    Player.setBaneModeState();
+                #endif
+                }
             }
         }
         else{
+           bothSwitchesEngagedCounter = 0;
            edgedetectionVoiceModes = false; 
         }
 
@@ -144,11 +170,20 @@ int main(){
                 #endif
 
                 if(!LimitSwitch.read()){
-                    //Sets the stepcounter to 0 when the LimitSwitch is !high
-                    Stepper.setInternalRotation(0);
-                    motorInitialized = true;
+                    limitSwitchReadCounter++;   //increases the counter if the switch is enaged
+                    if(limitSwitchReadCounter >= limitSwitchReadCycles){    //after a set cycletimes where the switch hase been engaged, read as high
+                        #ifdef _debug
+                            printf("Limitswitch triggered\n");
+                        #endif
+                        //Sets the stepcounter to 0 when the LimitSwitch is !high
+                        Stepper.setInternalRotation(0);
+                        motorInitialized = true;
+                    }
                 }
-                if(DownSwitch.read()){
+                else{
+                    limitSwitchReadCounter = 0; //Resets the counter if the switch isn't enaged
+                }
+                if(DownSwitch.read() && !UpSwitch.read()){
                     #ifdef _debug
                         printf("Down Switch, pull Solenoid back\n");
                     #endif
@@ -178,7 +213,7 @@ int main(){
                     }
                     else solenoidHoldCounter++;
                 }
-                else if(UpSwitch.read()){
+                else if(UpSwitch.read() && !DownSwitch.read()){
                     #ifdef _debug
                         printf("Up Switch\n");
                     #endif
@@ -210,6 +245,7 @@ int main(){
                     }
                 }
                 else{
+                    Stepper.setVelocity(0);
                     //delay to deactivate the solenoid after stopping to drive upwards
                     if(solenoidReleaseCounter >= solenoidReleaseDelay / mainTaskPeriod){
                         Solenoid.write(false);
@@ -220,19 +256,21 @@ int main(){
                     else{
                         solenoidReleaseCounter++;
                     }
-                    Stepper.setVelocity(0);
                     //wird nach drücken des UserButton einmal ausgefuehrt
                         if(resetAll){
                         }
                 }
                 #ifdef _debug
-                    printf("Motor Velocity :%f\n\n", Stepper.getVelocity());
+                    printf("Motor Velocity :%f\n", Stepper.getVelocity());
+                    printf("rotations :%f\n\n", Stepper.getRotation());
                 #endif
             break;
         }
         if(!Solenoid.read()){
-            solenoidReleaseCounter = 0;
             solenoidHoldCounter = 0;
+        }
+        if(!Solenoid.read() || DownSwitch.read()){
+            solenoidReleaseCounter = 0;
         }
         //read timer and make the main thread sleep for the remaining time span (non blocking)
         int mainTaskElapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(MainTaskTimer.elapsed_time()).count();

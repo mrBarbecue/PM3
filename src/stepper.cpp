@@ -54,9 +54,9 @@ bool Stepper::down()
 
 bool Stepper::rampUp(uint8_t mainExecutionTime)
 {
-    if(getVelocity() < calcVelocity()){
+    if(getVelocity() < maxVelocity){
         //calculates and sets the speedincrease while ramping up the motor to drive upwards
-        setVelocity(getVelocity() + maxVelocity / (mainExecutionTime / rampUpTime));
+        setVelocity(getVelocity() + maxVelocity / (rampUpTime / mainExecutionTime));
         return false;
     }
     return true;
@@ -64,10 +64,10 @@ bool Stepper::rampUp(uint8_t mainExecutionTime)
 
 bool Stepper::rampDown(uint8_t mainExecutionTime)
 {
-        if(getVelocity() < calcVelocity()){
-            //calculates and sets the speedincrease while ramping up the motor to drive downwards
-            setVelocity(getVelocity() - calcVelocity() / (mainExecutionTime / rampUpTime));
-            return false;
+    if(getVelocity() > -maxVelocity){
+        //calculates and sets the speedincrease while ramping up the motor to drive downwards
+        setVelocity(getVelocity() - maxVelocity / (rampUpTime / mainExecutionTime));
+        return false;
     }
     return true;
 }
