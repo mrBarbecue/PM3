@@ -1,4 +1,6 @@
-#include "Stepper.h"
+#include "headers.h"
+
+extern bool motorInitialized ;      //if true, motor is initialized
 
 Stepper::Stepper(PinName step_pin,
                  PinName dir_pin,
@@ -25,6 +27,51 @@ Stepper::~Stepper()
     m_Timeout.detach();
     m_Thread.terminate();
 }
+
+bool Stepper::up()
+{
+    if(getRotation() >= rotationToTopPos){
+        //top pos reached, stop motor
+        setVelocity(0);
+        return true;
+    }
+    //top pos not yet reached, sets speed
+    setVelocity(maxVelocity);
+    return false;
+}
+
+bool Stepper::down()
+{
+    if(getRotation() <= softwareStopPos && motorInitialized){
+        //lowest pos reached, stop motor
+        setVelocity(0);
+        return true;
+    }
+    //lowest pos not yet reached, sets speed
+    setVelocity(-maxVelocity);
+    return false;
+}
+
+bool Stepper::rampUp(uint8_t mainExecutionTime)
+{
+    if(getVelocity() < calcVelocity()){
+        //calculates and sets the speedincrease while ramping up the motor to drive upwards
+        setVelocity(getVelocity() + maxVelocity / (mainExecutionTime / rampUpTime));
+        return false;
+    }
+    return true;
+}
+
+bool Stepper::rampDown(uint8_t mainExecutionTime)
+{
+        if(getVelocity() < calcVelocity()){
+            //calculates and sets the speedincrease while ramping up the motor to drive downwards
+            setVelocity(getVelocity() - calcVelocity() / (mainExecutionTime / rampUpTime));
+            return false;
+    }
+    return true;
+}
+
 
 void Stepper::setRotation(float rotations, float velocity)
 {
